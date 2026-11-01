@@ -146,7 +146,7 @@ function NutritionSection() {
           <div className="tile"><div className="k">Days logged</div><div className="v num">{logged.length}<small>/14</small></div></div>
         </div>
         <BarChart bars={bars.map((b) => ({ label: b.label, value: b.value, color: b.value >= state.goals.calories * 0.95 ? '#30d158' : '#ff9f0a' }))} target={state.goals.calories} yFmt={(v) => `${(v / 1000).toFixed(1)}k`} />
-        <div className="legend"><span><i style={{ background: '#30d158' }} />≥95% of target</span><span><i style={{ background: '#ff9f0a' }} />Under</span><span><i style={{ background: '#fff' }} />Target</span></div>
+        <div className="legend"><span><i style={{ background: '#30d158' }} />≥95% of target</span><span><i style={{ background: '#ff9f0a' }} />Under</span><span><i style={{ background: 'var(--ink)' }} />Target</span></div>
         <div className="cat-head">Calorie target history</div>
         {[...state.goalHistory].reverse().map((g) => (
           <div key={g.date} className="row between small" style={{ padding: '4px 0' }}>

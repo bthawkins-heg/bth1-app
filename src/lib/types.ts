@@ -152,6 +152,7 @@ export interface Preferences {
   groceryDays: number;
   prepDays: number[]; // weekdays
   weekStartsOn: 0 | 1;
+  theme: 'light' | 'dark' | 'system';
 }
 
 // ---------- Supplements ----------

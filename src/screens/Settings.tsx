@@ -41,7 +41,7 @@ export default function Settings() {
         <Row id="supps" icon="💊" title="Supplements" sub={`${state.supplements.filter((s) => s.active).length} active`} />
       </div>
       <div className="list">
-        <Row id="prefs" icon="⚙️" title="Preferences" sub={`Distance in ${state.prefs.distanceUnit} · notifications ${state.prefs.notifications ? 'on' : 'off'}`} />
+        <Row id="prefs" icon="⚙️" title="Preferences" sub={`${{ light: 'Light', dark: 'Dark', system: 'Auto' }[state.prefs.theme]} theme · ${state.prefs.distanceUnit} · notifications ${state.prefs.notifications ? 'on' : 'off'}`} />
         <Row id="data" icon="💾" title="Data & backup" sub={`Last backup: ${state.lastBackup ? fmtDate(state.lastBackup) : 'never'}`} />
       </div>
       <p className="tiny muted center">Nutrition values are labeled by source. Targets are guides, not limits. This app is not medical advice.</p>
@@ -406,6 +406,9 @@ function PrefsSheet({ onClose }: { onClose: () => void }) {
       <div className="list">
         <div className="list-row"><span className="grow">Distance unit</span>
           <div className="chips">{(['mi', 'km'] as const).map((u) => <button key={u} className={`chip ${prefs.distanceUnit === u ? 'active' : ''}`} onClick={() => update((d) => { d.prefs.distanceUnit = u; })}>{u === 'mi' ? 'Miles' : 'Kilometers'}</button>)}</div>
+        </div>
+        <div className="list-row"><span className="grow">Appearance</span>
+          <div className="chips">{([['light', 'Light'], ['dark', 'Dark'], ['system', 'Auto']] as const).map(([v, l]) => <button key={v} className={`chip ${prefs.theme === v ? 'active' : ''}`} onClick={() => update((d) => { d.prefs.theme = v; })}>{l}</button>)}</div>
         </div>
         <div className="list-row"><span className="grow">Week starts on</span>
           <div className="chips">{([0, 1] as const).map((u) => <button key={u} className={`chip ${prefs.weekStartsOn === u ? 'active' : ''}`} onClick={() => update((d) => { d.prefs.weekStartsOn = u; })}>{WD_LONG[u]}</button>)}</div>

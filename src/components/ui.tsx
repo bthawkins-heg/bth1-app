@@ -34,7 +34,7 @@ export function Icon({ name, size = 22, color = 'currentColor' }: { name: string
 export function Check({ on, partial, onClick, lg, label }: { on: boolean; partial?: boolean; onClick?: () => void; lg?: boolean; label?: string }) {
   return (
     <button className={`check ${on ? 'on' : ''} ${partial && !on ? 'partial' : ''} ${lg ? 'lg' : ''}`} onClick={(e) => { e.stopPropagation(); onClick?.(); }} aria-label={label} aria-pressed={on} role="checkbox" aria-checked={on}>
-      <Icon name="check" size={lg ? 18 : 15} color="#000" />
+      <Icon name="check" size={lg ? 18 : 15} color="var(--check-ink)" />
     </button>
   );
 }
@@ -174,8 +174,8 @@ export function LineChart({ series, height = 180, xLabels, yFmt = (v) => String(
     <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img">
       {ticks.map((t, i) => (
         <g key={i}>
-          <line x1={padL} x2={W - padR} y1={Y(t)} y2={Y(t)} stroke="rgba(255,255,255,.07)" />
-          <text x={padL - 6} y={Y(t) + 4} fill="#8e8e93" fontSize="10" textAnchor="end">{yFmt(t)}</text>
+          <line x1={padL} x2={W - padR} y1={Y(t)} y2={Y(t)} stroke="var(--grid)" />
+          <text x={padL - 6} y={Y(t) + 4} fill="var(--sub)" fontSize="10" textAnchor="end">{yFmt(t)}</text>
         </g>
       ))}
       {hLines.map((h, i) => (
@@ -197,7 +197,7 @@ export function LineChart({ series, height = 180, xLabels, yFmt = (v) => String(
       {xLabels?.map((l, i) => {
         // keep edge labels inside the chart (a centred "Oct 31" at the right edge was cut to "Oct 3")
         const anchor = l.x <= xmin ? 'start' : l.x >= xmax ? 'end' : 'middle';
-        return <text key={i} x={anchor === 'end' ? W - padR : X(l.x)} y={H - 6} fill="#8e8e93" fontSize="10" textAnchor={anchor}>{l.label}</text>;
+        return <text key={i} x={anchor === 'end' ? W - padR : X(l.x)} y={H - 6} fill="var(--sub)" fontSize="10" textAnchor={anchor}>{l.label}</text>;
       })}
     </svg>
   );
@@ -213,8 +213,8 @@ export function BarChart({ bars, height = 150, target, color = 'var(--accent)', 
   return (
     <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img">
       {[0, 0.5, 1].map((t, i) => (
-        <g key={i}><line x1={padL} x2={W} y1={Y(max / 1.1 * t)} y2={Y(max / 1.1 * t)} stroke="rgba(255,255,255,.06)" />
-          <text x={padL - 6} y={Y(max / 1.1 * t) + 4} fill="#8e8e93" fontSize="10" textAnchor="end">{yFmt(max / 1.1 * t)}</text></g>
+        <g key={i}><line x1={padL} x2={W} y1={Y(max / 1.1 * t)} y2={Y(max / 1.1 * t)} stroke="var(--grid)" />
+          <text x={padL - 6} y={Y(max / 1.1 * t) + 4} fill="var(--sub)" fontSize="10" textAnchor="end">{yFmt(max / 1.1 * t)}</text></g>
       ))}
       {bars.map((b, i) => {
         const w = Math.min(bw * 0.64, 34), x = padL + i * bw + (bw - w) / 2;
@@ -222,11 +222,11 @@ export function BarChart({ bars, height = 150, target, color = 'var(--accent)', 
           <g key={i}>
             {b.secondary != null && <rect x={x} y={Y(b.secondary)} width={w} height={Math.max(0, H - padB - Y(b.secondary))} rx={4} fill={b.color ?? color} opacity={0.22} />}
             <rect x={x} y={Y(b.value)} width={w} height={Math.max(0, H - padB - Y(b.value))} rx={4} fill={b.color ?? color} />
-            <text x={x + w / 2} y={H - 5} fill="#8e8e93" fontSize="9.5" textAnchor="middle">{b.label}</text>
+            <text x={x + w / 2} y={H - 5} fill="var(--sub)" fontSize="9.5" textAnchor="middle">{b.label}</text>
           </g>
         );
       })}
-      {target != null && <line x1={padL} x2={W} y1={Y(target)} y2={Y(target)} stroke="#fff" strokeOpacity=".5" strokeDasharray="4 4" />}
+      {target != null && <line x1={padL} x2={W} y1={Y(target)} y2={Y(target)} stroke="var(--ink)" strokeOpacity=".5" strokeDasharray="4 4" />}
     </svg>
   );
 }

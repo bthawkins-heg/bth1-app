@@ -103,7 +103,7 @@ export default function Today() {
         <Macro name="Fat" color="var(--fat)" consumed={t.consumed.fat} planned={t.planned.fat} goal={g.fat} />
         <Macro name="Fiber" color="var(--fiber)" consumed={t.consumed.fiber} planned={t.planned.fiber} goal={g.fiber} />
         <div className="legend" style={{ marginTop: 12 }}>
-          <span><i style={{ background: '#fff' }} />Eaten</span><span><i style={{ background: 'rgba(255,255,255,.3)' }} />Planned</span>
+          <span><i style={{ background: 'var(--ink)' }} />Eaten</span><span><i style={{ background: 'var(--ink)', opacity: .3 }} />Planned</span>
           <span>Targets are goals, not limits</span>
         </div>
       </section>
@@ -202,7 +202,7 @@ export default function Today() {
 
 /** Tiny inline marker so estimates stand out from label-verified values. */
 function SourceTag({ v }: { v: DayItem['verification'] }) {
-  const map = { label: ['✓ label', 'var(--green)'], 'retailer-label': ['retailer label', '#64d2ff'], database: ['USDA ref', '#409cff'], estimate: ['estimate', 'var(--orange)'], user: ['custom', '#bf5af2'] } as const;
+  const map = { label: ['✓ label', 'var(--green)'], 'retailer-label': ['retailer label', 'var(--c-retailer)'], database: ['USDA ref', 'var(--c-db)'], estimate: ['estimate', 'var(--orange)'], user: ['custom', 'var(--c-user)'] } as const;
   const [t, c] = map[v];
   return <span style={{ color: c, fontWeight: 600 }}>· {t}</span>;
 }

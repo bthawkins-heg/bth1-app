@@ -199,7 +199,7 @@ export function seedState(): AppState {
     profile: PUBLIC ? { name: '', startWeight: 0, goalWeight: 0, heightIn: 0, startDate: t } : { name: 'Benjamin', startWeight: 145, goalWeight: 180, heightIn: 70, startDate: t },
     goals,
     goalHistory: [{ date: t, goals, note: 'Starting targets' }],
-    prefs: { distanceUnit: 'mi', weightUnit: 'lb', notifications: false, groceryDays: 7, prepDays: [0, 3], weekStartsOn: 0 },
+    prefs: { distanceUnit: 'mi', weightUnit: 'lb', notifications: false, groceryDays: 7, prepDays: [0, 3], weekStartsOn: 0, theme: 'light' },
     foods: SEED_FOODS.map((f) => structuredClone(f)),
     meals: SEED_MEALS.map((m) => structuredClone(m)),
     plans: [{

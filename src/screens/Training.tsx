@@ -229,7 +229,7 @@ function ProgramsSheet({ onClose }: { onClose: () => void }) {
       <div className="list">
         {state.programs.map((p) => (
           <div key={p.id} className="list-row">
-            <button className={`check ${state.activeProgramId === p.id ? 'on' : ''}`} onClick={() => update((d) => { d.activeProgramId = p.id; }, `Switched to ${p.name}`)} aria-label={`Activate ${p.name}`}><Icon name="check" size={15} color="#000" /></button>
+            <button className={`check ${state.activeProgramId === p.id ? 'on' : ''}`} onClick={() => update((d) => { d.activeProgramId = p.id; }, `Switched to ${p.name}`)} aria-label={`Activate ${p.name}`}><Icon name="check" size={15} color="var(--check-ink)" /></button>
             <input className="input sm grow" value={p.name} onChange={(e) => update((d) => { d.programs.find((x) => x.id === p.id)!.name = e.target.value; })} aria-label="Program name" />
             <span className="tiny muted">Paused</span>
             <Switch on={p.paused} onChange={(v) => update((d) => { d.programs.find((x) => x.id === p.id)!.paused = v; }, v ? `Paused ${p.name}` : `Resumed ${p.name}`)} label="Pause" />
