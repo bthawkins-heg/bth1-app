@@ -194,7 +194,11 @@ export function LineChart({ series, height = 180, xLabels, yFmt = (v) => String(
           </g>
         );
       })}
-      {xLabels?.map((l, i) => <text key={i} x={X(l.x)} y={H - 6} fill="#8e8e93" fontSize="10" textAnchor="middle">{l.label}</text>)}
+      {xLabels?.map((l, i) => {
+        // keep edge labels inside the chart (a centred "Oct 31" at the right edge was cut to "Oct 3")
+        const anchor = l.x <= xmin ? 'start' : l.x >= xmax ? 'end' : 'middle';
+        return <text key={i} x={anchor === 'end' ? W - padR : X(l.x)} y={H - 6} fill="#8e8e93" fontSize="10" textAnchor={anchor}>{l.label}</text>;
+      })}
     </svg>
   );
 }

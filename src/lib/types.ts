@@ -322,7 +322,8 @@ export interface AppState {
   schedule: MealSchedule;
   days: Record<string, DayLog>;
   pantry: Record<string, number>; // foodId -> amount on hand in purchase units
-  groceryChecked: Record<string, boolean>;
+  groceryChecked: Record<string, string>; // key -> date it was checked (checks expire after a few days)
+  lastBackup?: string; // date of the last downloaded/copied backup
   supplements: Supplement[];
   programs: Program[];
   activeProgramId?: string;

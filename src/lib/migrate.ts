@@ -1,6 +1,7 @@
 import type { AppState } from './types';
 import { seedState } from './seed';
 import { migrateSupplement } from './supplements';
+import { today } from './date';
 
 /** Fill any fields missing from older saved states so new features never crash on old data. */
 export function migrate(raw: Partial<AppState>): AppState {
@@ -17,6 +18,10 @@ export function migrate(raw: Partial<AppState>): AppState {
     const seed = base.foods.find((x) => x.id === f.id);
     if (seed?.purchase?.buyAs && f.purchase && !f.purchase.buyAs) { f.purchase.buyAs = seed.purchase.buyAs; f.purchase.packageLabel = seed.purchase.packageLabel; }
   }
-  s.version = 2;
+  // v3: grocery checkmarks store the date they were made (old true/false values count as checked today)
+  for (const [k, v] of Object.entries(s.groceryChecked as Record<string, unknown>)) {
+    if (v === true) s.groceryChecked[k] = today(); else if (typeof v !== 'string') delete s.groceryChecked[k];
+  }
+  s.version = 3;
   return s;
 }

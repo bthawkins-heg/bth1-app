@@ -38,7 +38,8 @@ function WeightSection() {
   const rate = weeklyRate(ws);
   const gained = current - p.startWeight;
   const togo = p.goalWeight - current;
-  const pct = Math.max(0, Math.min(1, gained / (p.goalWeight - p.startWeight)));
+  const span = p.goalWeight - p.startWeight;
+  const pct = span ? Math.max(0, Math.min(1, gained / span)) : 0;
   const sug = calorieSuggestion(ws);
   const x0 = ws.length ? parse(ws[0].date).getTime() : 0;
   const X = (d: string) => (parse(d).getTime() - x0) / 86400000;
@@ -55,7 +56,7 @@ function WeightSection() {
           </div>
           <div style={{ textAlign: 'right' }}>
             <div className="small muted">Goal {p.goalWeight} lb</div>
-            <div className="small" style={{ color: gained >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 700 }}>{gained >= 0 ? '+' : ''}{gained.toFixed(1)} lb gained</div>
+            <div className="small" style={{ color: gained >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 700 }}>{gained >= 0 ? `+${gained.toFixed(1)} lb gained` : `${Math.abs(gained).toFixed(1)} lb lost`} since start</div>
           </div>
         </div>
         <div className="bar" style={{ height: 10, margin: '12px 0 4px' }}><i style={{ width: `${pct * 100}%`, background: 'linear-gradient(90deg, #30d158, #64d2ff)' }} /></div>
@@ -79,9 +80,10 @@ function WeightSection() {
         <div className="hr" />
         <div className="grid2">
           <Field label="Morning weight (lb)"><NumInput value={lb} onChange={setLb} placeholder={current.toFixed(1)} ariaLabel="Morning weight" /></Field>
-          <Field label="Date"><input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Weigh-in date" /></Field>
+          <Field label="Date"><input className="input" type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} aria-label="Weigh-in date" /></Field>
         </div>
-        <button className="btn block" disabled={!lb || lb < 50 || lb > 500} onClick={() => { update((d) => A.addWeight(d, date, lb!), `Logged ${lb} lb`); setLb(null); }}>Log weight</button>
+        {ws.some((w) => w.date === date) && <div className="tiny muted" style={{ margin: '-4px 4px 8px' }}>You already logged {ws.find((w) => w.date === date)!.lb} lb for {fmtDate(date)}; saving replaces it.</div>}
+        <button className="btn block" disabled={!lb || lb < 50 || lb > 500 || date > today()} onClick={() => { update((d) => A.addWeight(d, date, lb!), `Logged ${lb} lb`); setLb(null); }}>Log weight</button>
         {ws.length > 0 && <button className="btn ghost sm" style={{ marginTop: 8, paddingLeft: 0 }} onClick={() => setAll(true)}>All weigh-ins ({ws.length})</button>}
       </div>
 

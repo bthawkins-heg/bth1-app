@@ -7,13 +7,18 @@ import { addDays, fmtDate, fmtTime, nowHHMM, range, relDay, startOfWeek, today, 
 import { fmtAmount, unitsFor } from '../lib/units';
 import { supplementDueOn, GROUPS, scheduleNote } from '../lib/supplements';
 import { occurrencesOn, typeName, TYPE_COLOR } from '../lib/training';
-import { setUI } from '../lib/uiState';
-import { Bar, Check, Empty, Field, Icon, Ring, Sheet, Stepper, Switch, UnitSelect, VerBadge } from '../components/ui';
+import { setUI, useToday } from '../lib/uiState';
+import { Bar, Check, Empty, Field, Icon, Ring, Sheet, Stepper, Switch, UnitSelect, useConfirm, VerBadge } from '../components/ui';
 import FoodPicker from '../components/FoodPicker';
 
 export default function Today() {
   const state = useApp((s) => s);
-  const [date, setDate] = useState(today());
+  const now = useToday();
+  // null = follow the current day, so an app left open overnight shows the new day when reopened
+  const [picked, setPicked] = useState<string | null>(null);
+  const date = picked ?? now;
+  const setDate = (d: string) => setPicked(d === today() ? null : d);
+  const { ask, node: confirmNode } = useConfirm();
   const [itemSheet, setItemSheet] = useState<{ meal: DayMeal; item: DayItem } | null>(null);
   const [mealSheet, setMealSheet] = useState<DayMeal | null>(null);
   const [addTo, setAddTo] = useState<string | null>(null);
@@ -172,10 +177,15 @@ export default function Today() {
       ))}
       <div className="row" style={{ gap: 8 }}>
         <button className="btn secondary sm grow" onClick={() => setNewMeal(true)}><Icon name="plus" size={16} />Add meal</button>
-        <button className="btn secondary sm grow" onClick={() => update((d) => A.copyDay(d, addDays(date, -1), date), `Copied ${relDay(addDays(date, -1)).toLowerCase()}'s meals`)}><Icon name="copy" size={16} />Copy previous day</button>
+        <button className="btn secondary sm grow" onClick={async () => {
+          const logged = day.meals.some((m) => m.items.some((i) => i.consumed));
+          if (logged && !(await ask(`Replace this day's meals with ${relDay(addDays(date, -1)).toLowerCase()}'s? Foods you already logged here will be removed (you can undo right after).`))) return;
+          update((d) => A.copyDay(d, addDays(date, -1), date), `Copied ${relDay(addDays(date, -1)).toLowerCase()}'s meals`);
+        }}><Icon name="copy" size={16} />Copy previous day</button>
       </div>
 
       <SupplementsSection date={date} />
+      {confirmNode}
 
       {itemSheet && <ItemSheet date={date} meal={itemSheet.meal} item={itemSheet.item} onClose={() => setItemSheet(null)} />}
       {mealSheet && <MealSheet date={date} meal={mealSheet} onClose={() => setMealSheet(null)} />}

@@ -23,3 +23,21 @@ export function useUI(): UI {
   return useSyncExternalStore((l) => { ls.add(l); return () => ls.delete(l); }, () => ui, () => ui);
 }
 if (typeof window !== 'undefined') window.addEventListener('hashchange', () => { const t = tabFromHash(); if (t !== ui.tab) setUI({ tab: t }); });
+
+// The current local date, kept fresh when the app is reopened after midnight (Home Screen apps resume, they don't reload).
+let todayStr = '';
+const dayLs = new Set<() => void>();
+function refreshToday() {
+  const d = new Date();
+  const t = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  if (t !== todayStr) { todayStr = t; dayLs.forEach((l) => l()); }
+}
+refreshToday();
+if (typeof window !== 'undefined') {
+  document.addEventListener('visibilitychange', refreshToday);
+  window.addEventListener('focus', refreshToday);
+  setInterval(refreshToday, 60_000);
+}
+export function useToday(): string {
+  return useSyncExternalStore((l) => { dayLs.add(l); return () => dayLs.delete(l); }, () => todayStr, () => todayStr);
+}

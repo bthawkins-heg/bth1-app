@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Icon } from './components/ui';
 import { useUI, setUI, type Tab } from './lib/uiState';
-import { useToast, undo, dismissToast, initRemote } from './lib/store';
+import { useToast, undo, dismissToast, initRemote, loadProblem } from './lib/store';
 import Today from './screens/Today';
 import Training from './screens/Training';
 import Groceries from './screens/Groceries';
@@ -24,6 +24,12 @@ export default function App() {
   return (
     <>
       <main className="app">
+        {loadProblem && (
+          <div className="banner warn" role="alert" style={{ marginTop: 12 }}>
+            <span>⚠️</span>
+            <div className="small grow">Your saved data couldn’t be read, so the app started fresh. The original was kept on this device (key “{loadProblem}”). Restore a backup in Settings → Data & backup, and don’t reset the app.</div>
+          </div>
+        )}
         {tab === 'today' && <Today />}
         {tab === 'training' && <Training />}
         {tab === 'groceries' && <Groceries />}

@@ -32,7 +32,7 @@ export default function Settings() {
       <div className="screen-head"><div><h1 className="large-title">Settings</h1><div className={`sync ${sync}`}><i />{syncText}</div></div></div>
       <div className="list">
         <Row id="goals" icon="🎯" title="Nutrition targets" sub={`${state.goals.calories} kcal · ${state.goals.protein}P · ${state.goals.carbs}C · ${state.goals.fat}F`} />
-        <Row id="profile" icon="👤" title="Profile & weight goal" sub={`${state.profile.startWeight} → ${state.profile.goalWeight} lb`} />
+        <Row id="profile" icon="👤" title="Profile & weight goal" sub={state.profile.startWeight && state.profile.goalWeight ? `${state.profile.startWeight} → ${state.profile.goalWeight} lb` : 'Not set yet'} />
       </div>
       <div className="list">
         <Row id="meals" icon="🍽️" title="Meals" sub={state.meals.map((m) => m.name).join(' · ')} />
@@ -42,7 +42,7 @@ export default function Settings() {
       </div>
       <div className="list">
         <Row id="prefs" icon="⚙️" title="Preferences" sub={`Distance in ${state.prefs.distanceUnit} · notifications ${state.prefs.notifications ? 'on' : 'off'}`} />
-        <Row id="data" icon="💾" title="Data & backup" sub="Export, import, reset" />
+        <Row id="data" icon="💾" title="Data & backup" sub={`Last backup: ${state.lastBackup ? fmtDate(state.lastBackup) : 'never'}`} />
       </div>
       <p className="tiny muted center">Nutrition values are labeled by source. Targets are guides, not limits. This app is not medical advice.</p>
 
@@ -72,7 +72,8 @@ function GoalsSheet({ onClose }: { onClose: () => void }) {
         <Field label="Fiber (g, optional)"><NumInput value={g.fiber} onChange={(v) => setG({ ...g, fiber: v ?? undefined })} /></Field>
       </div>
       <div className="small muted" style={{ marginBottom: 12 }}>Macros add up to {r0(macroKcal).toLocaleString()} kcal (protein & carbs 4 kcal/g, fat 9 kcal/g).</div>
-      <button className="btn block" onClick={() => { update((d) => A.setGoals(d, g, 'Edited in Settings'), 'Targets saved'); onClose(); }}>Save targets</button>
+      {!(g.calories > 0 && g.protein >= 0 && g.carbs >= 0 && g.fat >= 0) && <div className="small" style={{ color: 'var(--red)', marginBottom: 8 }}>Calories must be above zero and macros can’t be negative.</div>}
+      <button className="btn block" disabled={!(g.calories > 0 && g.protein >= 0 && g.carbs >= 0 && g.fat >= 0)} onClick={() => { update((d) => A.setGoals(d, g, 'Edited in Settings'), 'Targets saved'); onClose(); }}>Save targets</button>
     </Sheet>
   );
 }
@@ -409,7 +410,7 @@ function PrefsSheet({ onClose }: { onClose: () => void }) {
         <div className="list-row"><span className="grow">Week starts on</span>
           <div className="chips">{([0, 1] as const).map((u) => <button key={u} className={`chip ${prefs.weekStartsOn === u ? 'active' : ''}`} onClick={() => update((d) => { d.prefs.weekStartsOn = u; })}>{WD_LONG[u]}</button>)}</div>
         </div>
-        <div className="list-row"><span className="grow">Notifications<div className="tiny muted">Off unless you turn them on</div></span>
+        <div className="list-row"><span className="grow">Notifications<div className="tiny muted">Off unless you turn them on. On iPhone, a web app can’t schedule alerts while closed, so reminders show inside the app.</div></span>
           <Switch on={prefs.notifications} label="Notifications" onChange={async (v) => {
             if (v) {
               try {
@@ -432,19 +433,46 @@ function DataSheet({ onClose }: { onClose: () => void }) {
   const [txt, setTxt] = useState('');
   const { ask, node } = useConfirm();
   const sync = useSyncStatus();
+  const last = useApp((s) => s.lastBackup);
+  const markBackedUp = () => update((d) => { d.lastBackup = today(); });
+  const restore = async (raw: string) => {
+    try {
+      const data = JSON.parse(raw);
+      if (!data.goals || !data.foods) throw new Error('bad');
+      if (await ask('Replace all current data with this backup?')) { replaceState(data); showToast('Backup restored'); onClose(); }
+    } catch { showToast('That doesn’t look like a backup from this app'); }
+  };
+  const saveFile = async () => {
+    const name = `bulk-backup-${today()}.json`;
+    const blob = new Blob([JSON.stringify(getState())], { type: 'application/json' });
+    try {
+      const file = new File([blob], name, { type: 'application/json' });
+      const nav = navigator as Navigator & { canShare?: (d: unknown) => boolean };
+      if (nav.canShare?.({ files: [file] })) { await nav.share({ files: [file], title: 'Backup' }); markBackedUp(); return; }
+    } catch (e) { if ((e as Error)?.name === 'AbortError') return; }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    markBackedUp();
+  };
   return (
     <Sheet open onClose={onClose} title="Data & backup">
       <div className="small muted" style={{ marginBottom: 12 }}>
-        {sync === 'synced' || sync === 'syncing' ? 'Your data is saved to your Claude account (private to you) and on this device, so it follows you between devices.' : 'Your data is saved on this device. Logging works offline.'}
+        {sync === 'synced' || sync === 'syncing' ? 'Your data is saved to your Claude account (private to you) and on this device, so it follows you between devices.' : 'Your data is saved only on this device. Save a backup file now and then so a lost phone or cleared browser data doesn’t erase your history.'}
+        <div style={{ marginTop: 6 }} data-testid="last-backup">Last backup: <b>{last ? fmtDate(last) : 'never'}</b></div>
       </div>
-      <button className="btn secondary block" onClick={async () => showToast((await copyText(JSON.stringify(getState()))) ? 'Backup copied to clipboard' : 'Copy failed')}><Icon name="copy" size={16} />Copy backup (JSON)</button>
-      <Field label="Restore from backup"><textarea className="input" value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="Paste backup JSON here" style={{ marginTop: 12 }} /></Field>
-      <button className="btn secondary block" disabled={!txt.trim()} onClick={async () => {
-        try { const data = JSON.parse(txt); if (!data.goals || !data.foods) throw new Error('bad'); if (await ask('Replace all current data with this backup?')) { replaceState(data); showToast('Backup restored'); onClose(); } }
-        catch { showToast('That doesn’t look like a backup from this app'); }
-      }}>Restore</button>
+      <button className="btn block" onClick={saveFile}><Icon name="share" size={16} />Save backup file</button>
+      <button className="btn secondary block" style={{ marginTop: 8 }} onClick={async () => { const ok = await copyText(JSON.stringify(getState())); if (ok) markBackedUp(); showToast(ok ? 'Backup copied to clipboard' : 'Copy failed'); }}><Icon name="copy" size={16} />Copy backup text</button>
+      <div className="cat-head">Restore</div>
+      <label className="btn secondary block" style={{ cursor: 'pointer' }}>
+        Restore from file
+        <input type="file" accept="application/json,.json,text/plain" style={{ display: 'none' }} aria-label="Backup file"
+          onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) await restore(await f.text()); }} />
+      </label>
+      <Field label="Or paste backup text"><textarea className="input" value={txt} onChange={(e) => setTxt(e.target.value)} placeholder="Paste backup JSON here" style={{ marginTop: 8 }} /></Field>
+      <button className="btn secondary block" disabled={!txt.trim()} onClick={() => restore(txt)}>Restore pasted backup</button>
       <div className="hr" />
-      <button className="btn danger block" onClick={async () => { if (await ask('Erase everything and start over with the default plan? Copy a backup first if you might want it.')) { resetAll(); showToast('Reset to defaults'); onClose(); } }}>Reset all data</button>
+      <button className="btn danger block" onClick={async () => { if (await ask('Erase everything and start over with the default plan? Save a backup first if you might want it.')) { resetAll(); showToast('Reset to defaults'); onClose(); } }}>Reset all data</button>
       {node}
     </Sheet>
   );

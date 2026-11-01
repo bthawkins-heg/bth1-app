@@ -6,7 +6,7 @@ import { toPurchaseUnits } from './grocery';
 export interface PrepBatch {
   date: string;
   coversDays: string[];
-  items: { foodId: string; name: string; cookedQty: number; unit: Unit; buyQty: number | null; buyUnit?: string; buyLabel?: string; perDay: number }[];
+  items: { foodId: string; name: string; cookedQty: number; unit: Unit; buyQty: number | null; buyUnit?: string; buyLabel?: string; buyAs?: string; perDay: number }[];
   portions: number;
 }
 
@@ -44,7 +44,7 @@ export function prepBatch(state: AppState, date: string): PrepBatch {
       if (!f?.prepable) continue;
       dayHasPrep = true;
       const key = `${f.id}|${it.unit}`;
-      const cur = agg.get(key) ?? { foodId: f.id, name: f.name, cookedQty: 0, unit: it.unit, buyQty: 0, buyUnit: f.purchase?.conversion ? f.purchase.unit : undefined, buyLabel: f.purchase?.conversion?.label, perDay: it.qty };
+      const cur = agg.get(key) ?? { foodId: f.id, name: f.name, cookedQty: 0, unit: it.unit, buyQty: 0, buyUnit: f.purchase?.conversion ? f.purchase.unit : undefined, buyLabel: f.purchase?.conversion?.label, buyAs: f.purchase?.buyAs, perDay: it.qty };
       cur.cookedQty += it.qty;
       const b = toPurchaseUnits(f, it.qty, it.unit);
       cur.buyQty = cur.buyQty != null && b != null ? cur.buyQty + b : null;
@@ -55,11 +55,11 @@ export function prepBatch(state: AppState, date: string): PrepBatch {
   return { date, coversDays: days, items: [...agg.values()], portions };
 }
 
-export const PREP_STEPS = [
-  { id: 'rice', text: 'Rinse rice until the water runs mostly clear, then cook the dry rice (rice cooker or stovetop).' },
-  { id: 'beef', text: 'Brown the ground beef fully in a large pan, breaking it up. Cook to an internal 160°F (71°C).' },
-  { id: 'drain', text: 'Drain excess fat if you like (it lowers cooked-weight fat; nutrition uses USDA pan-browned values).' },
-  { id: 'weigh', text: 'Weigh the cooked beef and the cooked rice so portions are accurate.' },
+export const PREP_STEPS: { id: string; text: string; match?: RegExp }[] = [
+  { id: 'rice', match: /rice/i, text: 'Rinse rice until the water runs mostly clear, then cook the dry rice (rice cooker or stovetop).' },
+  { id: 'beef', match: /beef/i, text: 'Brown the ground beef fully in a large pan, breaking it up. Cook to an internal 160°F (71°C).' },
+  { id: 'drain', match: /beef/i, text: 'Drain excess fat if you like (it lowers cooked-weight fat; nutrition uses USDA pan-browned values).' },
+  { id: 'weigh', text: 'Weigh each cooked food so portions are accurate.' },
   { id: 'portion', text: 'Portion into containers: one per day, using the per-day amounts below.' },
   { id: 'cool', text: 'Cool and refrigerate within 2 hours of cooking.' },
   { id: 'label', text: 'Label containers with the date. Freeze any portion you won\'t eat within 3–4 days.' },
@@ -71,3 +71,8 @@ export const STORAGE_TIPS = [
   'Reheat to 165°F (74°C) until steaming. Add the olive oil after reheating.',
   'Cooked rice should be cooled quickly (spread it out) before refrigerating.',
 ];
+
+/** Checklist steps that apply to the foods actually in this batch (no beef steps if the plan has no beef). */
+export function stepsFor(b: PrepBatch) {
+  return PREP_STEPS.filter((s) => !s.match || b.items.some((i) => s.match!.test(i.name)));
+}

@@ -3,7 +3,7 @@ import type { IntervalSegment, Occurrence, RunType, ScheduleEntry, WorkoutTempla
 import { useApp, update } from '../lib/store';
 import * as A from '../lib/actions';
 import { newId, r0 } from '../lib/nutrition';
-import { addDays, fmtDate, fmtDuration, MONTHS_LONG, parse, range, relDay, startOfWeek, today, WD_LONG, WD_SHORT } from '../lib/date';
+import { addDays, fmtDate, fmtDuration, MONTHS_LONG, parse, range, relDay, startOfWeek, today, WD_SHORT } from '../lib/date';
 import { occurrencesInRange, TYPE_COLOR, TYPE_LABEL, typeName, isRunType, isLiftType, completedSessions, sessionVolume, paceSecPerUnit } from '../lib/training';
 import { kmTo, toKm } from '../lib/units';
 import { setUI } from '../lib/uiState';
@@ -306,8 +306,11 @@ export function TemplateBuilder({ initial, onClose }: { initial: WorkoutTemplate
     onClose();
   };
   const showRun = isRunType(t.type) || !!t.run;
+  // Don't lose a half-built workout to a stray tap on Close.
+  const dirty = JSON.stringify(t) !== JSON.stringify(initial) || !!exName.trim();
+  const tryClose = async () => { if (!dirty || await ask('Discard your changes to this workout?')) onClose(); };
   return (
-    <Sheet open onClose={onClose} title={isNew ? 'New workout' : 'Edit workout'} full right={<button className="btn sm" onClick={save}>Save</button>}>
+    <Sheet open onClose={tryClose} title={isNew ? 'New workout' : 'Edit workout'} full right={<button className="btn sm" onClick={save}>Save</button>}>
       <Field label="Name"><input className="input" value={t.name} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. Upper A, Long run" aria-label="Workout name" /></Field>
       <Field group label="Type">
         <div className="chips" style={{ flexWrap: 'wrap' }}>
@@ -426,7 +429,7 @@ function HistoryView() {
             <div style={{ width: 6, alignSelf: 'stretch', borderRadius: 3, background: TYPE_COLOR[s.type] }} />
             <div className="grow">
               <div className="food-name">{s.name} {s.status === 'in-progress' && <span className="badge estimate">In progress</span>}</div>
-              <div className="food-sub">{relDay(s.date)} · {WD_LONG[parse(s.date).getDay()]} · {typeName(s)}</div>
+              <div className="food-sub">{relDay(s.date)} · {typeName(s)}</div>
               <div className="food-sub num">
                 {s.exercises.length > 0 && `${s.exercises.reduce((a, e) => a + e.sets.filter((x) => x.done).length, 0)} sets · ${r0(sessionVolume(s)).toLocaleString()} lb volume`}
                 {s.run?.distanceKm ? `${s.exercises.length ? ' · ' : ''}${kmTo(unit, s.run.distanceKm).toFixed(2)} ${unit} · ${fmtDuration(s.run.durationSec)}${pace ? ` · ${fmtDuration(pace)}/${unit}` : ''}` : ''}

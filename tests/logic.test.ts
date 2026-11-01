@@ -356,3 +356,26 @@ describe('persistence', () => {
     expect(m.foods.length).toBeGreaterThan(10);
   });
 });
+
+describe('audit fixes', () => {
+  it('grocery checkmarks expire after a few days so last week’s trip does not hide this week’s items', () => {
+    const s = seedState();
+    A.toggleGrocery(s, 'eggs-eb', '2026-11-01');
+    expect(A.groceryIsChecked(s, 'eggs-eb', '2026-11-01')).toBe(true);
+    expect(A.groceryIsChecked(s, 'eggs-eb', '2026-11-03')).toBe(true);
+    expect(A.groceryIsChecked(s, 'eggs-eb', '2026-11-04')).toBe(false);
+    // ticking again after expiry checks it, not unchecks it
+    A.toggleGrocery(s, 'eggs-eb', '2026-11-08');
+    expect(A.groceryIsChecked(s, 'eggs-eb', '2026-11-08')).toBe(true);
+    A.toggleGrocery(s, 'eggs-eb', '2026-11-08');
+    expect(A.groceryIsChecked(s, 'eggs-eb', '2026-11-08')).toBe(false);
+  });
+
+  it('migrates old true/false grocery checkmarks', () => {
+    const old = { ...seedState(), groceryChecked: { 'eggs-eb': true, milk: false } } as unknown as AppState;
+    const m = migrate(old);
+    expect(typeof m.groceryChecked['eggs-eb']).toBe('string');
+    expect(m.groceryChecked.milk).toBeUndefined();
+    expect(m.version).toBe(3);
+  });
+});

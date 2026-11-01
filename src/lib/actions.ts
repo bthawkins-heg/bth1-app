@@ -5,7 +5,7 @@ import type {
 import { buildDayFromPlan, findFood, foodNutrients, makeDayItem, newId, planSignature, ZERO } from './nutrition';
 import { sessionFromTemplate } from './training';
 import { convert } from './units';
-import { today } from './date';
+import { addDays, today } from './date';
 
 // ---------------- Days / logging ----------------
 export function ensureDay(d: AppState, date: string): DayLog {
@@ -363,7 +363,15 @@ export function deleteSession(d: AppState, id: string) { d.sessions = d.sessions
 export function setPantry(d: AppState, key: string, amount: number) {
   if (amount > 0) d.pantry[key] = amount; else delete d.pantry[key];
 }
-export function toggleGrocery(d: AppState, key: string) { d.groceryChecked[key] = !d.groceryChecked[key]; }
+/** A shopping-list checkmark lasts this many days, so last week's trip doesn't hide this week's items. */
+export const CHECK_DAYS = 3;
+export function groceryIsChecked(s: Pick<AppState, 'groceryChecked'>, key: string, on: string = today()): boolean {
+  const v = s.groceryChecked[key];
+  return !!v && v <= on && v > addDays(on, -CHECK_DAYS);
+}
+export function toggleGrocery(d: AppState, key: string, on: string = today()) {
+  if (groceryIsChecked(d, key, on)) delete d.groceryChecked[key]; else d.groceryChecked[key] = on;
+}
 
 export function togglePrepStep(d: AppState, date: string, step: string) {
   const r = (d.prep[date] ??= { date, done: {}, completed: false });

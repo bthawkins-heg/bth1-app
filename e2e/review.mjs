@@ -308,7 +308,7 @@ await page.getByTestId('meal-Dinner').locator('.food-main').first().click(); awa
 await page.getByTestId('meal-Dinner').getByRole('button', { name: 'Food' }).click(); await sheetOk('food picker'); await close();
 await tab('Training'); await page.getByRole('tab', { name: 'Workouts' }).click();
 await page.getByRole('button', { name: 'New workout' }).click(); await top().getByRole('button', { name: 'Intervals', exact: true }).click();
-await top().getByRole('button', { name: 'Add segment' }).click(); await sheetOk('workout builder w/ intervals'); await close();
+await top().getByRole('button', { name: 'Add segment' }).click(); await sheetOk('workout builder w/ intervals'); await close(); await confirm();
 await tab('Settings'); await page.getByRole('button', { name: /^🗓️/ }).click(); await sheetOk('meal plans'); await close();
 await page.getByRole('button', { name: /^🥫/ }).click(); await top().locator('.list-row').first().click(); await sheetOk('food editor'); await close(); await close();
 const tb = await page.locator('.tabbar').boundingBox();

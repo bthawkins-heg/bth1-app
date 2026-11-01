@@ -6,6 +6,8 @@ import { migrate } from './migrate';
 const LS_KEY = 'fuel-app-state-v1';
 
 type Listener = () => void;
+/** Set when saved data could not be read; the raw text is kept under a backup key so nothing is overwritten. */
+export let loadProblem: string | null = null;
 let state: AppState = load();
 const listeners = new Set<Listener>();
 const undoStack: { label: string; state: AppState }[] = [];
@@ -16,11 +18,18 @@ const syncListeners = new Set<Listener>();
 function setSync(s: SyncStatus) { syncStatus = s; syncListeners.forEach((l) => l()); }
 
 function load(): AppState {
+  let raw: string | null = null;
+  try { raw = typeof localStorage !== 'undefined' ? localStorage.getItem(LS_KEY) : null; } catch { return seedState(); }
+  if (!raw) return seedState();
   try {
-    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(LS_KEY) : null;
-    if (raw) return migrate(JSON.parse(raw));
-  } catch { /* storage unavailable or corrupt: fall back to seed */ }
-  return seedState();
+    return migrate(JSON.parse(raw));
+  } catch {
+    // Never silently replace unreadable data: park it under its own key first.
+    const key = `${LS_KEY}-unreadable-${Date.now()}`;
+    try { localStorage.setItem(key, raw); } catch { /* full */ }
+    loadProblem = key;
+    return seedState();
+  }
 }
 
 function saveLocal() {
@@ -43,6 +52,10 @@ export function update(fn: (draft: AppState) => void, undo?: string) {
     undoStack.push({ label: undo, state: prev });
     if (undoStack.length > 30) undoStack.shift();
     showToast(undo, true);
+  } else if (undoStack.length) {
+    // Undo restores a whole earlier snapshot, so after any other change it would also erase that change.
+    undoStack.length = 0;
+    if (toast?.canUndo) { toast = { ...toast, canUndo: false }; toastListeners.forEach((l) => l()); }
   }
   state = draft;
   saveLocal();
@@ -66,6 +79,19 @@ export function replaceState(next: AppState, persistRemote = true) {
   saveLocal();
   emit();
   if (persistRemote) scheduleRemote();
+}
+
+// Another window/tab of the app saved: pick up its data instead of later overwriting it.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key !== LS_KEY || !e.newValue) return;
+    try {
+      const next = migrate(JSON.parse(e.newValue));
+      if (next.updatedAt >= state.updatedAt) { state = next; undoStack.length = 0; emit(); }
+    } catch { /* ignore */ }
+  });
+  // Ask the browser not to evict this app's storage under pressure (best effort).
+  try { navigator.storage?.persist?.(); } catch { /* unsupported */ }
 }
 
 export function resetAll() { undoStack.length = 0; replaceState(seedState()); }

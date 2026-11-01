@@ -107,14 +107,14 @@ export function generateGroceries(state: AppState, start: string, days: number):
   return [...lines.values()].sort((a, b) => DEPARTMENTS.indexOf(a.category) - DEPARTMENTS.indexOf(b.category) || a.name.localeCompare(b.name));
 }
 
-export function groceryText(lines: GroceryLine[], checked: Record<string, boolean>, fmt: (n: number) => string): string {
+export function groceryText(lines: GroceryLine[], checked: (key: string) => boolean, fmt: (n: number) => string): string {
   const out: string[] = [];
   let cat = '';
   for (const l of lines) {
     if (l.toBuy <= 0) continue;
     if (l.category !== cat) { cat = l.category; out.push('', cat.toUpperCase()); }
     const buy = l.packages && l.packageLabel ? `${l.packages} × ${l.packageLabel} (need ${fmt(l.toBuy)} ${l.needUnit})` : `${fmt(l.toBuy)} ${l.needUnit}`;
-    out.push(`${checked[l.key] ? '☑' : '☐'} ${l.brand !== 'Generic' ? l.brand + ' ' : ''}${l.name} — ${buy}`);
+    out.push(`${checked(l.key) ? '☑' : '☐'} ${l.brand !== 'Generic' ? l.brand + ' ' : ''}${l.name} — ${buy}`);
   }
   return out.join('\n').trim();
 }

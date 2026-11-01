@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useApp, update, showToast } from '../lib/store';
 import * as A from '../lib/actions';
 import { DEPARTMENTS, generateGroceries, groceryText, type GroceryLine } from '../lib/grocery';
-import { coverage, nextPrepDate, prepBatch, PREP_STEPS, STORAGE_TIPS } from '../lib/prep';
+import { coverage, nextPrepDate, prepBatch, stepsFor, STORAGE_TIPS } from '../lib/prep';
 import { addDays, fmtDate, relDay, today, WD_LONG, WD_SHORT, parse } from '../lib/date';
 import { fmtQty, plural } from '../lib/units';
 import type { Unit } from '../lib/types';
@@ -37,8 +37,9 @@ function ShoppingList() {
   const covered = lines.filter((l) => l.toBuy <= 0);
   const cost = toBuy.reduce((a, l) => a + (l.cost ?? 0), 0);
   const costKnown = toBuy.filter((l) => l.cost != null).length;
-  const checkedCount = toBuy.filter((l) => state.groceryChecked[l.key]).length;
-  const text = `Groceries · ${fmtDate(start)}–${fmtDate(addDays(start, days - 1))}\n` + groceryText(lines, state.groceryChecked, fmt);
+  const isChecked = (k: string) => A.groceryIsChecked(state, k);
+  const checkedCount = toBuy.filter((l) => isChecked(l.key)).length;
+  const text = `Groceries · ${fmtDate(start)}–${fmtDate(addDays(start, days - 1))}\n` + groceryText(lines, isChecked, fmt);
 
   return (
     <div>
@@ -58,6 +59,7 @@ function ShoppingList() {
           </div>
         </div>
         {checkedCount > 0 && <button className="btn ghost sm" style={{ marginTop: 6, paddingLeft: 0 }} onClick={() => update((d) => { d.groceryChecked = {}; }, 'Cleared checkmarks')}>Clear checkmarks</button>}
+        <div className="tiny muted" style={{ marginTop: checkedCount ? 0 : 8 }}>Checkmarks clear themselves {A.CHECK_DAYS} days after you tick them.</div>
       </div>
 
       {toBuy.length === 0 && <div className="card"><Empty icon="🛒" title="Nothing to buy">Your pantry covers this period.</Empty></div>}
@@ -69,7 +71,7 @@ function ShoppingList() {
             <div className="cat-head">{dept} <span className="muted">· {items.length}</span></div>
             <div className="list">
               {items.map((l) => {
-                const checked = !!state.groceryChecked[l.key];
+                const checked = isChecked(l.key);
                 const buy = l.packages > 0 && l.packageLabel ? `${l.packages} × ${l.packageLabel}` : `${fmt(l.toBuy)} ${u(String(l.needUnit), l.toBuy)}`;
                 return (
                   <div key={l.key} className="list-row" style={{ alignItems: 'flex-start', opacity: checked ? .5 : 1 }} data-testid={`grocery-${l.key}`}>
@@ -217,7 +219,7 @@ function PrepCard({ date }: { date: string }) {
               <div className="small"><b>{i.name}</b><div className="muted tiny">{fmt(i.perDay)} {i.unit} per day</div></div>
               <div className="small num" style={{ textAlign: 'right' }}>
                 <b>{fmt(i.cookedQty)} {i.unit} cooked</b>
-                {i.buyQty != null && i.buyUnit && <div className="muted tiny">≈ {fmt(i.buyQty)} {i.buyLabel?.split(',')[0]}</div>}
+                {i.buyQty != null && i.buyUnit && <div className="muted tiny">≈ {fmt(i.buyQty)} {u(i.buyUnit, i.buyQty) || i.buyUnit}{i.buyAs ? ` ${i.buyAs}` : ''}</div>}
               </div>
             </div>
           ))}
@@ -227,7 +229,7 @@ function PrepCard({ date }: { date: string }) {
         </>
       )}
       <div className="cat-head">Checklist</div>
-      {PREP_STEPS.map((s) => (
+      {stepsFor(b).map((s) => (
         <div key={s.id} className="row" style={{ padding: '6px 0', alignItems: 'flex-start' }}>
           <Check on={!!rec?.done[s.id]} onClick={() => update((d) => A.togglePrepStep(d, date, s.id))} label={s.text} />
           <div className="small grow" style={{ paddingTop: 4, color: rec?.done[s.id] ? 'var(--sub)' : undefined }}>{s.text}</div>
