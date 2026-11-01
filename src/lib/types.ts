@@ -55,6 +55,8 @@ export interface PurchaseInfo {
   packageSize: number;
   packageLabel: string; // e.g. "18-count carton"
   pricePerPackage?: number; // only if the user entered it
+  /** How it's sold when it differs from how it's eaten, e.g. 'raw' beef or 'dry' rice. */
+  buyAs?: string;
 }
 
 export interface MealItem {
@@ -153,7 +155,10 @@ export interface Preferences {
 }
 
 // ---------- Supplements ----------
-export type SupplementFrequency = 'unset' | 'daily' | 'training' | 'rest' | 'days' | 'as-needed';
+/** Which days a supplement shows up. ('unset' and 'as-needed' are legacy values migrated to the Optional group.) */
+export type SupplementFrequency = 'daily' | 'training' | 'rest' | 'days' | 'unset' | 'as-needed';
+/** Where it appears on Today. Optional items are always available but never counted as missed. */
+export type SupplementGroup = 'daily' | 'pre' | 'post' | 'optional';
 
 export interface Supplement {
   id: string;
@@ -162,8 +167,10 @@ export interface Supplement {
   servingSize: string;
   frequency: SupplementFrequency;
   days?: number[];
-  preWorkout: boolean;
-  postWorkout: boolean;
+  group: SupplementGroup;
+  /** legacy flags from v1, folded into `group` by migrate() */
+  preWorkout?: boolean;
+  postWorkout?: boolean;
   withMeal: string; // meal template id or ''
   reminderTime?: string;
   active: boolean;

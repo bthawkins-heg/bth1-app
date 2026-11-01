@@ -79,7 +79,8 @@ await f.getByRole('button', { name: 'Save food' }).click();
 await page.locator('.sheet').last().getByRole('button', { name: 'Add', exact: true }).click();
 ok('custom food added and logged', (await kcal()) === 686 + 105, `(${await kcal()})`);
 
-// --- supplements
+// --- supplements (compact section is collapsed by default)
+await page.getByTestId('supplements').getByRole('button', { name: /Supplements/ }).click();
 await page.getByRole('checkbox', { name: 'Greens' }).click();
 ok('supplement checked', (await page.getByRole('checkbox', { name: 'Greens' }).getAttribute('aria-checked')) === 'true');
 
@@ -87,6 +88,7 @@ ok('supplement checked', (await page.getByRole('checkbox', { name: 'Greens' }).g
 await page.reload();
 await page.waitForSelector('[data-testid="kcal-consumed"]');
 ok('persists after reload', (await kcal()) === 791, `(${await kcal()})`);
+await page.getByTestId('supplements').getByRole('button', { name: /Supplements/ }).count();
 ok('supplement persisted', (await page.getByRole('checkbox', { name: 'Greens' }).getAttribute('aria-checked')) === 'true');
 
 // --- previous days / copy

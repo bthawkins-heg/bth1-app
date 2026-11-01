@@ -279,11 +279,21 @@ describe('supplements', () => {
   });
   it('training-day supplements follow the workout calendar', () => {
     const sup = s.supplements.find((x) => x.id === 'sup-creatine')!;
-    sup.frequency = 'training';
+    sup.group = 'pre'; sup.frequency = 'training';
     expect(supplementDueOn(s, sup, D)).toBe(false);
     const id = A.createTemplate(s, { name: 'Run', type: 'run-outdoor', color: '#0f0', exercises: [] });
     A.addScheduleEntry(s, { templateId: id, kind: 'once', date: D, startDate: D });
     expect(supplementDueOn(s, sup, D)).toBe(true);
+  });
+  it('optional supplements are never counted as due, and v1 data migrates into groups', () => {
+    expect(s.supplements.filter((x) => x.group === 'optional').every((x) => !supplementDueOn(s, x, D))).toBe(true);
+    const v1 = { ...s.supplements[2], group: undefined, frequency: 'unset', preWorkout: false, postWorkout: false } as unknown as AppState['supplements'][number];
+    const v1pre = { ...s.supplements[3], group: undefined, frequency: 'training', preWorkout: true } as unknown as AppState['supplements'][number];
+    const m = migrate({ supplements: [v1, v1pre] } as Partial<AppState>);
+    expect(m.supplements[0].group).toBe('optional');
+    expect(m.supplements[0].frequency).toBe('daily');
+    expect(m.supplements[1].group).toBe('pre');
+    expect(m.supplements[1].frequency).toBe('training');
   });
   it('tracks completion and flags overlaps', () => {
     A.toggleSupplement(s, D, 'sup-greens');

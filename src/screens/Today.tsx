@@ -5,7 +5,7 @@ import * as A from '../lib/actions';
 import { dayTotals, getDay, mealTotals, r0, r1, foodLabel, foodNutrients, planSignature } from '../lib/nutrition';
 import { addDays, fmtDate, fmtTime, nowHHMM, range, relDay, startOfWeek, today, WD_SHORT, parse, MONTHS_LONG } from '../lib/date';
 import { fmtAmount, unitsFor } from '../lib/units';
-import { supplementDueOn, FREQ_LABEL } from '../lib/supplements';
+import { supplementDueOn, GROUPS, scheduleNote } from '../lib/supplements';
 import { occurrencesOn, typeName, TYPE_COLOR } from '../lib/training';
 import { setUI } from '../lib/uiState';
 import { Bar, Check, Empty, Field, Icon, Ring, Sheet, Stepper, Switch, UnitSelect, VerBadge } from '../components/ui';
@@ -27,11 +27,13 @@ export default function Today() {
   const isToday = date === today();
   const week = range(startOfWeek(date, state.prefs.weekStartsOn), 7);
 
-  const upNext = useMemo(() => {
-    if (!isToday) return null;
+  // Meals not fully logged. On today, a meal with a set time that has already passed moves after upcoming timed meals.
+  const remaining = useMemo(() => {
+    const open = day.meals.filter((m) => m.items.some((i) => !i.consumed));
+    if (!isToday) return open;
     const now = nowHHMM();
-    return day.meals.find((m) => m.time && m.time >= now && m.items.some((i) => !i.consumed))
-      ?? day.meals.find((m) => m.time && m.items.some((i) => !i.consumed));
+    const later = open.filter((m) => !m.time || m.time >= now);
+    return [...later, ...open.filter((m) => m.time && m.time < now)];
   }, [day, isToday]);
 
   const logItem = (meal: DayMeal, item: DayItem) =>
@@ -39,8 +41,6 @@ export default function Today() {
   const logMeal = (meal: DayMeal, on: boolean) =>
     update((d) => A.setMealConsumed(d, date, meal.id, on), on ? `Logged ${meal.name}` : `Unlogged ${meal.name}`);
 
-  const sups = state.supplements.filter((s) => supplementDueOn(state, s, date));
-  const otherSups = state.supplements.filter((s) => s.active && !supplementDueOn(state, s, date));
   const occ = occurrencesOn(state, date);
 
   return (
@@ -110,26 +110,24 @@ export default function Today() {
           <button className="btn sm" onClick={() => update((d) => A.resyncDay(d, date), 'Updated day from plan')}>Update</button>
         </div>
       )}
-      {upNext && (
-        <div className="banner" style={{ background: 'rgba(48,209,88,.12)' }}>
-          <Icon name="clock" size={18} color="var(--green)" />
-          <div className="grow small"><b>Up next:</b> {upNext.name} at {fmtTime(upNext.time)}</div>
-        </div>
-      )}
-
-      <div className="section-title">Meals <small>{day.meals.length} planned</small></div>
-      {day.meals.length === 0 && <div className="card"><Empty icon="🍽️" title="No meals planned">Add a meal or set a plan for this weekday in Settings.</Empty></div>}
-      {day.meals.map((meal) => (
-        <MealCard key={meal.id} meal={meal}
-          onToggle={(item) => logItem(meal, item)}
-          onLogAll={(on) => logMeal(meal, on)}
-          onItem={(item) => setItemSheet({ meal, item })}
-          onHead={() => setMealSheet(meal)}
-          onAdd={() => setAddTo(meal.id)} />
-      ))}
-      <div className="row" style={{ gap: 8 }}>
-        <button className="btn secondary sm grow" onClick={() => setNewMeal(true)}><Icon name="plus" size={16} />Add meal</button>
-        <button className="btn secondary sm grow" onClick={() => update((d) => A.copyDay(d, addDays(date, -1), date), `Copied ${relDay(addDays(date, -1)).toLowerCase()}'s meals`)}><Icon name="copy" size={16} />Copy previous day</button>
+      {/* Coming up: remaining meals in order (times only if you set them) */}
+      <div className="section-title">Coming up <small>{remaining.length ? `${remaining.length} meal${remaining.length > 1 ? 's' : ''} left` : 'all logged'}</small></div>
+      <div className="list" data-testid="coming-up">
+        {remaining.map((m, i) => {
+          const mt = mealTotals(m);
+          const eaten = m.items.filter((x) => x.consumed).length;
+          return (
+            <button key={m.id} className="list-row" onClick={() => document.getElementById(`meal-${m.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+              <span className="meal-emoji" style={{ width: 34, height: 34, fontSize: 18 }}>{m.emoji}</span>
+              <div className="grow">
+                <div className="food-name">{i === 0 && isToday ? <span style={{ color: 'var(--green)' }}>Next · </span> : ''}{m.name}</div>
+                <div className="food-sub num">{m.time ? fmtTime(m.time) : 'No set time'} · {eaten}/{m.items.length} foods logged</div>
+              </div>
+              <div className="food-kcal num">{r0(mt.planned.calories - mt.consumed.calories)}<small>kcal left</small></div>
+            </button>
+          );
+        })}
+        {!remaining.length && <div className="empty small">{day.meals.length ? 'Every planned food is logged. 🎉' : 'No meals planned.'}</div>}
       </div>
 
       {/* Workout */}
@@ -143,7 +141,7 @@ export default function Today() {
         if (!tpl) return null;
         const inProg = state.sessions.find((s) => s.occurrenceKey === o.key && s.status === 'in-progress');
         return (
-          <div key={o.key} className="card">
+          <div key={o.key} className="card" data-testid="today-workout">
             <div className="row">
               <div style={{ width: 6, alignSelf: 'stretch', borderRadius: 3, background: TYPE_COLOR[tpl.type] }} />
               <div className="grow">
@@ -162,33 +160,22 @@ export default function Today() {
         );
       })}
 
-      {/* Supplements */}
-      <div className="section-title">Supplements <small>{sups.filter((s) => day.supplements[s.id]).length}/{sups.length} taken</small></div>
-      <div className="list">
-        {sups.map((s) => (
-          <div key={s.id} className="list-row">
-            <Check on={!!day.supplements[s.id]} onClick={() => update((d) => A.toggleSupplement(d, date, s.id), day.supplements[s.id] ? `Unchecked ${s.name}` : `Took ${s.name}`)} label={s.name} />
-            <div className="grow">
-              <div className="food-name">{s.brand} {s.name}</div>
-              <div className="food-sub">{s.servingSize}{s.preWorkout ? ' · pre-workout' : ''}{s.postWorkout ? ' · post-workout' : ''}{s.withMeal ? ` · with ${state.meals.find((m) => m.id === s.withMeal)?.name ?? 'meal'}` : ''}{s.reminderTime ? ` · ${fmtTime(s.reminderTime)}` : ''}</div>
-            </div>
-          </div>
-        ))}
-        {!sups.length && <div className="empty small">No supplements scheduled for this day.</div>}
+      <div className="section-title">Meals <small>{day.meals.length} planned</small></div>
+      {day.meals.length === 0 && <div className="card"><Empty icon="🍽️" title="No meals planned">Add a meal or set a plan for this weekday in Settings.</Empty></div>}
+      {day.meals.map((meal) => (
+        <MealCard key={meal.id} meal={meal}
+          onToggle={(item) => logItem(meal, item)}
+          onLogAll={(on) => logMeal(meal, on)}
+          onItem={(item) => setItemSheet({ meal, item })}
+          onHead={() => setMealSheet(meal)}
+          onAdd={() => setAddTo(meal.id)} />
+      ))}
+      <div className="row" style={{ gap: 8 }}>
+        <button className="btn secondary sm grow" onClick={() => setNewMeal(true)}><Icon name="plus" size={16} />Add meal</button>
+        <button className="btn secondary sm grow" onClick={() => update((d) => A.copyDay(d, addDays(date, -1), date), `Copied ${relDay(addDays(date, -1)).toLowerCase()}'s meals`)}><Icon name="copy" size={16} />Copy previous day</button>
       </div>
-      {otherSups.length > 0 && (
-        <details className="card" style={{ padding: '12px 16px' }}>
-          <summary className="small muted" style={{ cursor: 'pointer' }}>Other supplements ({otherSups.length}) · as needed / not scheduled</summary>
-          <div style={{ marginTop: 8 }}>
-            {otherSups.map((s) => (
-              <div key={s.id} className="row" style={{ padding: '8px 0' }}>
-                <Check on={!!day.supplements[s.id]} onClick={() => update((d) => A.toggleSupplement(d, date, s.id), day.supplements[s.id] ? `Unchecked ${s.name}` : `Took ${s.name}`)} label={s.name} />
-                <div className="grow small"><b>{s.brand} {s.name}</b> <span className="muted">· {FREQ_LABEL[s.frequency]}</span></div>
-              </div>
-            ))}
-          </div>
-        </details>
-      )}
+
+      <SupplementsSection date={date} />
 
       {itemSheet && <ItemSheet date={date} meal={itemSheet.meal} item={itemSheet.item} onClose={() => setItemSheet(null)} />}
       {mealSheet && <MealSheet date={date} meal={mealSheet} onClose={() => setMealSheet(null)} />}
@@ -201,6 +188,13 @@ export default function Today() {
       {newMeal && <NewMealSheet onClose={() => setNewMeal(false)} onSave={(name) => { update((d) => { A.addDayMeal(d, date, name); }, `Added ${name}`); setNewMeal(false); }} />}
     </div>
   );
+}
+
+/** Tiny inline marker so estimates stand out from label-verified values. */
+function SourceTag({ v }: { v: DayItem['verification'] }) {
+  const map = { label: ['✓ label', 'var(--green)'], 'retailer-label': ['retailer label', '#64d2ff'], database: ['USDA ref', '#409cff'], estimate: ['estimate', 'var(--orange)'], user: ['custom', '#bf5af2'] } as const;
+  const [t, c] = map[v];
+  return <span style={{ color: c, fontWeight: 600 }}>· {t}</span>;
 }
 
 function Macro({ name, color, consumed, planned, goal }: { name: string; color: string; consumed: number; planned: number; goal?: number }) {
@@ -222,7 +216,7 @@ function MealCard({ meal, onToggle, onLogAll, onItem, onHead, onAdd }: {
   const allDone = meal.items.length > 0 && meal.items.every((i) => i.consumed);
   const some = meal.items.some((i) => i.consumed);
   return (
-    <section className="card tight" aria-label={meal.name} data-testid={`meal-${meal.name}`}>
+    <section className="card tight" id={`meal-${meal.id}`} style={{ scrollMarginTop: 12 }} aria-label={meal.name} data-testid={`meal-${meal.name}`}>
       <div className="meal-head">
         <button className="meal-emoji" onClick={onHead} aria-label={`${meal.name} options`}>{meal.emoji}</button>
         <button className="grow" style={{ textAlign: 'left' }} onClick={onHead}>
@@ -244,7 +238,7 @@ function MealCard({ meal, onToggle, onLogAll, onItem, onHead, onAdd }: {
           <Check on={it.consumed} onClick={() => onToggle(it)} label={`Log ${it.name}`} />
           <button className="food-main" onClick={() => onItem(it)}>
             <div className="food-name">{it.name}</div>
-            <div className="food-sub">{fmtAmount(it.qty, it.unit)}{it.unit === 'each' ? '' : ''} · {it.brand}{it.verification === 'estimate' ? ' · est.' : ''}</div>
+            <div className="food-sub">{fmtAmount(it.qty, it.unit)} · {it.brand} <SourceTag v={it.verification} /></div>
           </button>
           <button className="food-kcal num" onClick={() => onItem(it)}>
             {r0(it.n.calories)}
@@ -411,5 +405,50 @@ function HistorySheet({ onPick, onClose, selected }: { onPick: (d: string) => vo
         {!logged.length && <div className="empty small">No logged days yet.</div>}
       </div>
     </Sheet>
+  );
+}
+
+function SupplementsSection({ date }: { date: string }) {
+  const state = useApp((s) => s);
+  const day = getDay(state, date);
+  const [open, setOpen] = useState(() => { try { return localStorage.getItem('sup-open') === '1'; } catch { return false; } });
+  const toggleOpen = () => { const v = !open; setOpen(v); try { localStorage.setItem('sup-open', v ? '1' : '0'); } catch { /* ignore */ } };
+  const due = state.supplements.filter((s) => supplementDueOn(state, s, date));
+  const optional = state.supplements.filter((s) => s.active && s.group === 'optional');
+  const taken = due.filter((s) => day.supplements[s.id]).length;
+  const row = (s: (typeof due)[number]) => {
+    const meal = s.withMeal ? state.meals.find((m) => m.id === s.withMeal)?.name : '';
+    const note = [s.servingSize !== '1 serving' ? s.servingSize : '', meal ? `with ${meal}` : '', scheduleNote(s), s.reminderTime ? fmtTime(s.reminderTime) : ''].filter(Boolean).join(' · ');
+    return (
+      <div key={s.id} className="row" style={{ padding: '7px 0' }}>
+        <Check on={!!day.supplements[s.id]} onClick={() => update((d) => A.toggleSupplement(d, date, s.id), day.supplements[s.id] ? `Unchecked ${s.name}` : `Took ${s.name}`)} label={s.name} />
+        <div className="grow small"><b>{s.brand} {s.name}</b>{note && <div className="muted tiny">{note}</div>}</div>
+      </div>
+    );
+  };
+  return (
+    <section className="card" style={{ marginTop: 22, padding: 0 }} data-testid="supplements">
+      <button className="row" style={{ width: '100%', padding: '14px 16px', textAlign: 'left' }} onClick={toggleOpen} aria-expanded={open}>
+        <Icon name="pill" size={20} color="var(--sub)" />
+        <div className="grow"><div className="card-title" style={{ fontSize: 16 }}>Supplements</div>
+          <div className="tiny muted num">{due.length ? `${taken}/${due.length} taken` : 'Nothing in your daily groups'}{optional.length ? ` · ${optional.length} optional` : ''}</div></div>
+        <Icon name={open ? 'up' : 'down'} size={18} color="var(--sub)" />
+      </button>
+      {open && (
+        <div style={{ padding: '0 16px 12px' }}>
+          {GROUPS.map((g) => {
+            const list = g.id === 'optional' ? optional : due.filter((s) => s.group === g.id);
+            if (!list.length) return null;
+            return (
+              <div key={g.id}>
+                <div className="cat-head" style={{ margin: '10px 0 2px' }}>{g.label}</div>
+                {list.map(row)}
+              </div>
+            );
+          })}
+          <button className="btn ghost sm" style={{ paddingLeft: 0, marginTop: 4 }} onClick={() => setUI({ tab: 'settings' })}>Edit groups in Settings</button>
+        </div>
+      )}
+    </section>
   );
 }

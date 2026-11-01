@@ -46,6 +46,16 @@ export function toPurchaseUnits(food: Food, qty: number, unit: Unit): number | n
   return convert(s * food.servingSize, food.servingUnit, p.unit);
 }
 
+/** Name as it appears on the shelf: '80/20 ground beef (raw)', not '(cooked)'. */
+export function groceryName(food: Food): string {
+  let n = food.name;
+  if (food.purchase?.buyAs) n = n.replace(/\s*\((cooked|raw|dry)\)\s*$/i, '') + ` (${food.purchase.buyAs})`;
+  return food.flavor ? `${n} · ${food.flavor}` : n;
+}
+
+/** Store departments, in the order you'd typically walk them. */
+export const DEPARTMENTS: GroceryCategory[] = ['Produce', 'Bakery', 'Meat & Seafood', 'Dairy & Eggs', 'Pantry', 'Snacks', 'Beverages', 'Supplements', 'Other'];
+
 export function generateGroceries(state: AppState, start: string, days: number): GroceryLine[] {
   const lines = new Map<string, GroceryLine>();
   const dates = range(start, days);
@@ -58,7 +68,7 @@ export function generateGroceries(state: AppState, start: string, days: number):
         let line = lines.get(food.id);
         if (!line) {
           line = {
-            key: food.id, name: food.flavor ? `${food.name} (${food.flavor})` : food.name, brand: food.brand, category: food.category,
+            key: food.id, name: groceryName(food), brand: food.brand, category: food.category,
             required: [], needQty: 0, needUnit: food.purchase?.unit ?? item.unit,
             conversionLabel: food.purchase?.conversion?.label, onHand: 0, toBuy: 0, packages: 0,
             packageLabel: food.purchase?.packageLabel, packageSize: food.purchase?.packageSize, usedIn: [],
@@ -94,8 +104,7 @@ export function generateGroceries(state: AppState, start: string, days: number):
     const food = state.foods.find((f) => f.id === line.key);
     if (food?.purchase?.pricePerPackage != null && line.packageSize) line.cost = line.packages * food.purchase.pricePerPackage;
   }
-  const order: GroceryCategory[] = ['Produce', 'Meat & Seafood', 'Dairy & Eggs', 'Bakery', 'Pantry', 'Snacks', 'Beverages', 'Supplements', 'Other'];
-  return [...lines.values()].sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category) || a.name.localeCompare(b.name));
+  return [...lines.values()].sort((a, b) => DEPARTMENTS.indexOf(a.category) - DEPARTMENTS.indexOf(b.category) || a.name.localeCompare(b.name));
 }
 
 export function groceryText(lines: GroceryLine[], checked: Record<string, boolean>, fmt: (n: number) => string): string {
@@ -104,8 +113,8 @@ export function groceryText(lines: GroceryLine[], checked: Record<string, boolea
   for (const l of lines) {
     if (l.toBuy <= 0) continue;
     if (l.category !== cat) { cat = l.category; out.push('', cat.toUpperCase()); }
-    const pkg = l.packages && l.packageLabel ? ` → ${l.packages} × ${l.packageLabel}` : '';
-    out.push(`${checked[l.key] ? '☑' : '☐'} ${l.brand !== 'Generic' ? l.brand + ' ' : ''}${l.name}: ${fmt(l.toBuy)} ${l.needUnit}${pkg}`);
+    const buy = l.packages && l.packageLabel ? `${l.packages} × ${l.packageLabel} (need ${fmt(l.toBuy)} ${l.needUnit})` : `${fmt(l.toBuy)} ${l.needUnit}`;
+    out.push(`${checked[l.key] ? '☑' : '☐'} ${l.brand !== 'Generic' ? l.brand + ' ' : ''}${l.name} — ${buy}`);
   }
   return out.join('\n').trim();
 }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useApp, update, showToast } from '../lib/store';
 import * as A from '../lib/actions';
-import { generateGroceries, groceryText, type GroceryLine } from '../lib/grocery';
+import { DEPARTMENTS, generateGroceries, groceryText, type GroceryLine } from '../lib/grocery';
 import { coverage, nextPrepDate, prepBatch, PREP_STEPS, STORAGE_TIPS } from '../lib/prep';
 import { addDays, fmtDate, relDay, today, WD_LONG, WD_SHORT, parse } from '../lib/date';
 import { fmtQty, plural } from '../lib/units';
@@ -39,7 +39,6 @@ function ShoppingList() {
   const costKnown = toBuy.filter((l) => l.cost != null).length;
   const checkedCount = toBuy.filter((l) => state.groceryChecked[l.key]).length;
   const text = `Groceries · ${fmtDate(start)}–${fmtDate(addDays(start, days - 1))}\n` + groceryText(lines, state.groceryChecked, fmt);
-  let cat = '';
 
   return (
     <div>
@@ -62,27 +61,32 @@ function ShoppingList() {
       </div>
 
       {toBuy.length === 0 && <div className="card"><Empty icon="🛒" title="Nothing to buy">Your pantry covers this period.</Empty></div>}
-      {toBuy.map((l) => {
-        const head = l.category !== cat ? (cat = l.category) : null;
-        const checked = !!state.groceryChecked[l.key];
+      {DEPARTMENTS.map((dept) => {
+        const items = toBuy.filter((l) => l.category === dept);
+        if (!items.length) return null;
         return (
-          <div key={l.key}>
-            {head && <div className="cat-head">{head}</div>}
-            <div className="card" style={{ padding: '12px 14px', marginBottom: 8, opacity: checked ? .55 : 1 }} data-testid={`grocery-${l.key}`}>
-              <div className="row" style={{ alignItems: 'flex-start' }}>
-                <Check on={checked} onClick={() => update((d) => A.toggleGrocery(d, l.key))} label={`Got ${l.name}`} />
-                <button className="grow" style={{ textAlign: 'left' }} onClick={() => setEdit(l)}>
-                  <div className="food-name" style={{ textDecoration: checked ? 'line-through' : 'none' }}>{l.brand !== 'Generic' ? `${l.brand} ` : ''}{l.name}</div>
-                  <div className="food-sub num">
-                    Need <b style={{ color: 'var(--text)' }}>{fmt(l.needQty)} {u(String(l.needUnit), l.needQty)}</b>
-                    {l.onHand > 0 && <> · have {fmt(l.onHand)} · buy <b style={{ color: 'var(--text)' }}>{fmt(l.toBuy)}</b></>}
+          <section key={dept} data-testid={`dept-${dept}`}>
+            <div className="cat-head">{dept} <span className="muted">· {items.length}</span></div>
+            <div className="list">
+              {items.map((l) => {
+                const checked = !!state.groceryChecked[l.key];
+                const buy = l.packages > 0 && l.packageLabel ? `${l.packages} × ${l.packageLabel}` : `${fmt(l.toBuy)} ${u(String(l.needUnit), l.toBuy)}`;
+                return (
+                  <div key={l.key} className="list-row" style={{ alignItems: 'flex-start', opacity: checked ? .5 : 1 }} data-testid={`grocery-${l.key}`}>
+                    <Check on={checked} onClick={() => update((d) => A.toggleGrocery(d, l.key))} label={`Got ${l.name}`} />
+                    <button className="grow" style={{ textAlign: 'left' }} onClick={() => setEdit(l)}>
+                      <div className="food-name" style={{ textDecoration: checked ? 'line-through' : 'none' }}>{l.brand !== 'Generic' ? `${l.brand} ` : ''}{l.name}</div>
+                      <div className="food-buy" data-testid="buy">Buy {buy}{l.cost != null ? ` · $${l.cost.toFixed(2)}` : ''}</div>
+                      <div className="food-sub num">
+                        Need {fmt(l.needQty)} {u(String(l.needUnit), l.needQty)}{l.onHand > 0 ? ` · have ${fmt(l.onHand)}` : ''}
+                      </div>
+                      {l.conversionLabel && <div className="food-sub">Eaten as {l.required.map((r) => `${fmt(r.qty)} ${r.unit}`).join(' + ')} cooked · {l.conversionLabel}</div>}
+                    </button>
                   </div>
-                  {l.conversionLabel && <div className="food-sub">≈ {l.conversionLabel}. Eaten as: {l.required.map((r) => `${fmt(r.qty)} ${r.unit}`).join(' + ')}</div>}
-                  {l.packages > 0 && l.packageLabel && <div className="food-sub" style={{ color: 'var(--green)' }}>Suggested: {l.packages} × {l.packageLabel}{l.cost != null ? ` · $${l.cost.toFixed(2)}` : ''}</div>}
-                </button>
-              </div>
+                );
+              })}
             </div>
-          </div>
+          </section>
         );
       })}
       {covered.length > 0 && (

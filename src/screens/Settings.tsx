@@ -5,7 +5,7 @@ import * as A from '../lib/actions';
 import { foodLabel, itemNutrients, mealNutrients, newId, r0, sum } from '../lib/nutrition';
 import { fmtDate, today, WD_LONG, WD_SHORT, range, startOfWeek, weekday } from '../lib/date';
 import { unitsFor } from '../lib/units';
-import { FREQ_LABEL, overlaps } from '../lib/supplements';
+import { FREQ_LABEL, GROUPS, overlaps, scheduleNote } from '../lib/supplements';
 import { copyText, Field, Icon, NumInput, Sheet, Switch, UnitSelect, useConfirm, VerBadge, VER_LABEL } from '../components/ui';
 import FoodForm from '../components/FoodForm';
 import FoodPicker from '../components/FoodPicker';
@@ -292,7 +292,7 @@ function SupplementsSheet({ onClose }: { onClose: () => void }) {
   const state = useApp((s) => s);
   const [edit, setEdit] = useState<Supplement | null>(null);
   const ov = overlaps(state.supplements);
-  const blank: Supplement = { id: '', brand: '', name: '', servingSize: '1 serving', frequency: 'unset', preWorkout: false, postWorkout: false, withMeal: '', active: true, tags: { creatine: false, vitaminD: false, stimulant: false }, tagSource: 'Entered by you' };
+  const blank: Supplement = { id: '', brand: '', name: '', servingSize: '1 serving', frequency: 'daily', group: 'optional', withMeal: '', active: true, tags: { creatine: false, vitaminD: false, stimulant: false }, tagSource: 'Entered by you' };
   return (
     <Sheet open onClose={onClose} title="Supplements" full right={<button className="btn ghost sm" onClick={() => setEdit(blank)}>Add</button>}>
       {ov.length > 0 && (
@@ -305,18 +305,30 @@ function SupplementsSheet({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       )}
-      <div className="list">
-        {state.supplements.map((s) => (
-          <button key={s.id} className="list-row" onClick={() => setEdit(structuredClone(s))} style={{ opacity: s.active ? 1 : .5 }}>
-            <div className="grow">
-              <div className="food-name">{s.brand} {s.name}</div>
-              <div className="food-sub">{FREQ_LABEL[s.frequency]}{s.frequency === 'days' && s.days?.length ? ` (${s.days.map((d) => WD_SHORT[d]).join(', ')})` : ''} · {s.servingSize}
-                {[s.tags.creatine && 'creatine', s.tags.vitaminD && 'vitamin D', s.tags.stimulant && 'stimulant'].filter(Boolean).map((t) => ` · ${t}`)}</div>
+      <p className="small muted" style={{ marginTop: 0 }}>Daily, Pre-workout and Post-workout items form your checklist on Today. Optional items are always there to tick but never count as missed. No times are set unless you add one.</p>
+      {GROUPS.map((g) => {
+        const list = state.supplements.filter((s) => s.group === g.id);
+        return (
+          <div key={g.id} data-testid={`sup-group-${g.id}`}>
+            <div className="cat-head">{g.label} <span className="muted">({list.length})</span></div>
+            <div className="list">
+              {list.map((s) => {
+                const note = [scheduleNote(s), s.servingSize !== '1 serving' ? s.servingSize : '', ...[s.tags.creatine && 'creatine', s.tags.vitaminD && 'vitamin D', s.tags.stimulant && 'stimulant'].filter(Boolean)].filter(Boolean).join(' · ');
+                return (
+                  <button key={s.id} className="list-row" onClick={() => setEdit(structuredClone(s))} style={{ opacity: s.active ? 1 : .5, minHeight: 44 }}>
+                    <div className="grow">
+                      <div className="food-name">{s.brand} {s.name}{!s.active && <span className="muted"> · paused</span>}</div>
+                      {note && <div className="food-sub">{note}</div>}
+                    </div>
+                    <span className="chev">›</span>
+                  </button>
+                );
+              })}
+              {!list.length && <div className="empty small" style={{ padding: 14 }}>None</div>}
             </div>
-            <span className="chev">›</span>
-          </button>
-        ))}
-      </div>
+          </div>
+        );
+      })}
       {edit && <SupplementEditor initial={edit} onClose={() => setEdit(null)} />}
     </Sheet>
   );
@@ -337,19 +349,24 @@ function SupplementEditor({ initial, onClose }: { initial: Supplement; onClose: 
         <Field label="Serving size"><input className="input" value={s.servingSize} onChange={(e) => set({ servingSize: e.target.value })} aria-label="Serving size" /></Field>
         <Field label="Servings per container"><NumInput value={s.servingsPerContainer} onChange={(v) => set({ servingsPerContainer: v ?? undefined })} /></Field>
       </div>
-      <Field group label="How often">
+      <Field group label="Group">
         <div className="chips" style={{ flexWrap: 'wrap' }}>
-          {(Object.keys(FREQ_LABEL) as Supplement['frequency'][]).map((f) => <button key={f} className={`chip ${s.frequency === f ? 'active' : ''}`} onClick={() => set({ frequency: f })}>{FREQ_LABEL[f]}</button>)}
+          {GROUPS.map((g) => <button key={g.id} className={`chip ${s.group === g.id ? 'active' : ''}`} onClick={() => set({ group: g.id })}>{g.label}</button>)}
         </div>
       </Field>
+      {s.group !== 'optional' && (
+        <Field group label="Show on">
+          <div className="chips" style={{ flexWrap: 'wrap' }}>
+            {(Object.keys(FREQ_LABEL) as (keyof typeof FREQ_LABEL)[]).map((f) => <button key={f} className={`chip ${s.frequency === f ? 'active' : ''}`} onClick={() => set({ frequency: f })}>{FREQ_LABEL[f]}</button>)}
+          </div>
+        </Field>
+      )}
       {s.frequency === 'days' && (
         <Field group label="Days">
           <div className="chips" style={{ flexWrap: 'wrap' }}>{WD_SHORT.map((w, i) => <button key={w} className={`chip ${(s.days ?? []).includes(i) ? 'active' : ''}`} onClick={() => set({ days: (s.days ?? []).includes(i) ? s.days!.filter((x) => x !== i) : [...(s.days ?? []), i] })}>{w}</button>)}</div>
         </Field>
       )}
       <div className="list">
-        <div className="list-row"><span className="grow">Before workout</span><Switch on={s.preWorkout} onChange={(v) => set({ preWorkout: v })} label="Before workout" /></div>
-        <div className="list-row"><span className="grow">After workout</span><Switch on={s.postWorkout} onChange={(v) => set({ postWorkout: v })} label="After workout" /></div>
         <div className="list-row"><span className="grow">With meal</span>
           <select className="select sm" style={{ width: 170 }} value={s.withMeal} onChange={(e) => set({ withMeal: e.target.value })}>
             <option value="">—</option>{state.meals.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}

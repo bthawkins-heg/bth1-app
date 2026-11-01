@@ -40,10 +40,10 @@ export const SEED_FOODS: Food[] = [
     purchase: { unit: 'fl oz', packageSize: 52, packageLabel: '52 fl oz bottle' },
   },
   {
-    id: 'gainer-milkchoc', brand: 'Transparent Labs', name: 'Mass Gainer', flavor: 'Milk Chocolate', servingSize: 1, servingUnit: 'serving', gramsPerServing: 198,
+    id: 'gainer-milkchoc', brand: 'Transparent Labs', name: 'Mass Gainer', flavor: 'Milk Chocolate', servingSize: 1, servingUnit: 'serving',
     nutrients: n(740, 53, 109, 12, 8, 15), category: 'Supplements',
     sourceName: 'Label transcribed in BarBend review (Milk Chocolate, 2 scoops)', sourceUrl: 'https://barbend.com/transparent-labs-mass-gainer-review', verification: 'retailer-label',
-    notes: 'Transparent Labs states 760–770 kcal and 53–55 g protein per serving depending on flavor. Copy the exact panel from your bag.',
+    notes: 'Transparent Labs states 760–770 kcal and 53–55 g protein per serving depending on flavor. Serving weight in grams is not confirmed (sources disagree), so log it by serving. Copy the exact panel from your bag.',
     purchase: { unit: 'serving', packageSize: 15, packageLabel: 'bag (check servings on your bag)' },
   },
   {
@@ -71,26 +71,26 @@ export const SEED_FOODS: Food[] = [
     nutrients: n(272, 25.9, 0, 17.9, 0, 0), state: 'cooked', category: 'Meat & Seafood', prepable: true,
     sourceName: 'USDA SR Legacy "Beef, ground, 80% lean / 20% fat, crumbles, cooked, pan-browned"', sourceUrl: FDC('beef ground 80% lean crumbles pan-browned'), verification: 'database',
     notes: 'Measured by COOKED weight. Thomas Farms labels list RAW values, so the generic cooked value is used. ' + USDA_NOTE,
-    purchase: { unit: 'lb', conversion: { fromUnit: 'oz', factor: 1 / (0.7 * 16), label: 'raw lb, assuming ~70% cooked yield (estimate; varies with fat drained)' }, packageSize: 1, packageLabel: '1 lb pack (raw)' },
+    purchase: { unit: 'lb', conversion: { fromUnit: 'oz', factor: 1 / (0.7 * 16), label: 'raw lb, assuming ~70% cooked yield (estimate; varies with fat drained)' }, packageSize: 1, packageLabel: '1 lb pack', buyAs: 'raw' },
   },
   {
     id: 'chicken-cooked', brand: 'Generic', name: 'Chicken breast (cooked)', servingSize: 100, servingUnit: 'g',
     nutrients: n(165, 31, 0, 3.6, 0, 0), state: 'cooked', category: 'Meat & Seafood', prepable: true,
     sourceName: 'USDA SR Legacy "Chicken, broilers, breast, meat only, roasted"', sourceUrl: FDC('chicken breast meat only roasted'), verification: 'database', notes: USDA_NOTE,
-    purchase: { unit: 'lb', conversion: { fromUnit: 'oz', factor: 1 / (0.75 * 16), label: 'raw lb, assuming ~75% cooked yield (estimate)' }, packageSize: 1, packageLabel: '1 lb pack (raw)' },
+    purchase: { unit: 'lb', conversion: { fromUnit: 'oz', factor: 1 / (0.75 * 16), label: 'raw lb, assuming ~75% cooked yield (estimate)' }, packageSize: 1, packageLabel: '1 lb pack', buyAs: 'raw' },
   },
   {
     id: 'salmon-cooked', brand: 'Generic', name: 'Atlantic salmon (cooked)', servingSize: 100, servingUnit: 'g',
     nutrients: n(206, 22.1, 0, 12.4, 0, 0), state: 'cooked', category: 'Meat & Seafood',
     sourceName: 'USDA SR Legacy "Fish, salmon, Atlantic, farmed, cooked, dry heat"', sourceUrl: FDC('salmon atlantic farmed cooked dry heat'), verification: 'database', notes: USDA_NOTE,
-    purchase: { unit: 'lb', conversion: { fromUnit: 'oz', factor: 1 / (0.8 * 16), label: 'raw lb, assuming ~80% cooked yield (estimate)' }, packageSize: 1, packageLabel: '1 lb fillet (raw)' },
+    purchase: { unit: 'lb', conversion: { fromUnit: 'oz', factor: 1 / (0.8 * 16), label: 'raw lb, assuming ~80% cooked yield (estimate)' }, packageSize: 1, packageLabel: '1 lb fillet', buyAs: 'raw' },
   },
   {
     id: 'rice-jasmine-cooked', brand: 'Generic', name: 'Jasmine rice (cooked)', servingSize: 1, servingUnit: 'cup', gramsPerServing: 158,
     nutrients: n(205, 4.3, 44.5, 0.4, 0.6, 0.1), state: 'cooked', category: 'Pantry', prepable: true,
     sourceName: 'USDA SR Legacy "Rice, white, long-grain, regular, enriched, cooked" (proxy for jasmine)', sourceUrl: FDC('rice white long-grain regular enriched cooked'), verification: 'database',
     notes: 'Jasmine is a long-grain white rice; the generic cooked value is used until you enter your brand\'s label. ' + USDA_NOTE,
-    purchase: { unit: 'cup', conversion: { fromUnit: 'cup', factor: 1 / 3, label: 'cups DRY rice (~1 cup dry → ~3 cups cooked, estimate)' }, packageSize: 4.9, packageLabel: '2 lb bag (≈4.9 cups dry)' },
+    purchase: { unit: 'cup', conversion: { fromUnit: 'cup', factor: 1 / 3, label: 'cups DRY rice (~1 cup dry → ~3 cups cooked, estimate)' }, packageSize: 4.9, packageLabel: '2 lb bag (≈4.9 cups dry)', buyAs: 'dry' },
   },
   {
     id: 'olive-oil', brand: 'Generic', name: 'Olive oil', servingSize: 1, servingUnit: 'tbsp', gramsPerServing: 13.5,
@@ -165,13 +165,13 @@ export const SEED_MEALS: MealTemplate[] = [
 ];
 
 const S = (id: string, brand: string, name: string, extra: Partial<Supplement> = {}): Supplement => ({
-  id, brand, name, servingSize: '1 serving', frequency: 'unset', preWorkout: false, postWorkout: false, withMeal: '',
+  id, brand, name, servingSize: '1 serving', frequency: 'daily', group: 'optional', withMeal: '',
   active: true, tags: { creatine: false, vitaminD: false, stimulant: false }, tagSource: 'Not tagged yet — check the label and tag it in Settings', ...extra,
 });
 
 export const SEED_SUPPLEMENTS: Supplement[] = [
-  S('sup-greens', 'Transparent Labs', 'Greens', { frequency: 'daily', notes: 'Set to daily because your 7-day grocery list includes 7 servings. Change any time.' }),
-  S('sup-metamucil', 'Metamucil', 'Clear Fiber Blend', { frequency: 'daily', notes: 'Set to daily because your 7-day grocery list includes 7 servings. Change any time.' }),
+  S('sup-greens', 'Transparent Labs', 'Greens', { group: 'daily', notes: 'In the Daily group because your 7-day grocery list includes 7 servings. Change any time.' }),
+  S('sup-metamucil', 'Metamucil', 'Clear Fiber Blend', { group: 'daily', notes: 'In the Daily group because your 7-day grocery list includes 7 servings. Change any time.' }),
   S('sup-multi', 'Transparent Labs', 'Multivitamin', { tags: { creatine: false, vitaminD: true, stimulant: false }, tagSource: 'Multivitamins typically include vitamin D — confirm on label' }),
   S('sup-creatine', 'Transparent Labs', 'Creatine HMB', { tags: { creatine: true, vitaminD: false, stimulant: false }, tagSource: 'Creatine is in the product name' }),
   S('sup-krill', 'Transparent Labs', 'Krill Oil'),
