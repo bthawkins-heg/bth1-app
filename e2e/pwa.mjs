@@ -1,0 +1,13 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const p = await (await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true })).newPage();
+await p.goto('http://localhost:4181/');
+await p.waitForSelector('[data-testid="kcal-consumed"]');
+await p.waitForTimeout(1500);
+console.log('sw controller/registrations:', await p.evaluate(async () => (await navigator.serviceWorker.getRegistrations()).length));
+console.log('manifest:', await p.evaluate(async () => (await (await fetch('./manifest.webmanifest')).json()).display));
+await p.context().setOffline(true);
+await p.reload();
+await p.waitForSelector('[data-testid="kcal-consumed"]');
+console.log('offline reload ok');
+await b.close();
