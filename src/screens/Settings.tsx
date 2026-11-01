@@ -461,7 +461,8 @@ function DataSheet({ onClose }: { onClose: () => void }) {
         {sync === 'synced' || sync === 'syncing' ? 'Your data is saved to your Claude account (private to you) and on this device, so it follows you between devices.' : 'Your data is saved only on this device. Save a backup file now and then so a lost phone or cleared browser data doesn’t erase your history.'}
         <div style={{ marginTop: 6 }} data-testid="last-backup">Last backup: <b>{last ? fmtDate(last) : 'never'}</b></div>
       </div>
-      <button className="btn block" onClick={saveFile}><Icon name="share" size={16} />Save backup file</button>
+      {/* Inside Claude's viewer, pages can't hand over files; data there is saved to your account instead. */}
+      {!(window as unknown as { claude?: unknown }).claude && <button className="btn block" onClick={saveFile}><Icon name="share" size={16} />Save backup file</button>}
       <button className="btn secondary block" style={{ marginTop: 8 }} onClick={async () => { const ok = await copyText(JSON.stringify(getState())); if (ok) markBackedUp(); showToast(ok ? 'Backup copied to clipboard' : 'Copy failed'); }}><Icon name="copy" size={16} />Copy backup text</button>
       <div className="cat-head">Restore</div>
       <label className="btn secondary block" style={{ cursor: 'pointer' }}>
